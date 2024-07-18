@@ -45,6 +45,10 @@ const User = sequelize.define("user", {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  background: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   status: {
     type: DataTypes.STRING,
     allowNull: true,

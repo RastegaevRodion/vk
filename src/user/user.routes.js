@@ -1,10 +1,13 @@
 const express = require("express");
+const { Op } = require("sequelize");
 const path = require("path");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const User = require("./user.model");
 const { tokenSecret } = require("../constants");
+const getId = require("../utils/getId");
+const getUser = require("../utils/getUser");
 
 const router = express.Router();
 
@@ -43,7 +46,6 @@ router.post("/signIn", async (req, res) => {
       user.dataValues.password
     );
     if (match) {
-      const { password, ...rest } = user.dataValues;
       const token = jwt.sign({ userId: user.dataValues.id }, tokenSecret, {
         expiresIn: "30d",
       });
@@ -51,7 +53,7 @@ router.post("/signIn", async (req, res) => {
         maxAge: new Date(new Date() + 1000 * 60 * 60 * 24 * 30),
         httpOnly: true,
       });
-      return res.status(200).json({ data: { ...rest } });
+      return res.status(200).json({ data: getUser(user.dataValues) });
     } else {
       return res.status(400).json({ error: "Email or password are invalid" });
     }
@@ -94,13 +96,7 @@ const images = upload.fields([
 ]);
 
 router.put("/", images, async (req, res) => {
-  if (!req.cookies.jwt) {
-    return res.status(401).json({ error: "not_authorized" });
-  }
-  const { userId } = jwt.verify(req.cookies.jwt, tokenSecret);
-  if (!userId) {
-    return res.status(401).json({ error: "not_authorized" });
-  }
+  const userId = getId(req, res);
   const { id, password, ...rest } = req.body;
   const user = { ...rest };
   if (req.files?.avatar) {
@@ -109,36 +105,60 @@ router.put("/", images, async (req, res) => {
     user.avatar = avatar;
   }
 
+  if (req.files?.background) {
+    const [image] = req.files.background;
+    const background = `http://localhost:3001/static/${image.filename}`;
+    user.background = background;
+  }
+
   await User.update(user, { where: { id: userId } });
   const { dataValues } = await User.findOne({ where: { id: userId } });
-  const { password: userPassword, ...userRest } = dataValues;
-  res.status(200).json({ data: { ...userRest } });
+  res.status(200).json({ data: getUser(dataValues) });
+});
+
+router.get("/search", async (req, res) => {
+  const { key } = req.query;
+  if (!key) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  const words = key.split(/\s+/);
+  console.log([
+    ...words.map((word) => {
+      return { firstName: { [Op.iLike]: word } };
+    }),
+    ...words.map((word) => {
+      return { lastName: { [Op.iLike]: word } };
+    }),
+  ]);
+  const users = await User.findAll({
+    where: {
+      [Op.or]: [
+        ...words.map((word) => {
+          return { firstName: { [Op.iLike]: word } };
+        }),
+        ...words.map((word) => {
+          return { lastName: { [Op.iLike]: word } };
+        }),
+      ],
+    },
+  });
+  return res
+    .status(200)
+    .json({ data: users.map(({ dataValues }) => getUser(dataValues)) });
 });
 
 router.get("/:id", async (req, res) => {
-  if (!req.cookies.jwt) {
-    return res.status(401).json({ error: "not_authorized" });
+  const user = await User.findOne({ where: { id: +req.params.id } });
+  if (!user || !user.dataValues) {
+    return res.status(404).json({ error: "not_found" });
   }
-  const { userId } = jwt.verify(req.cookies.jwt, tokenSecret);
-  if (!userId) {
-    return res.status(401).json({ error: "not_authorized" });
-  }
-  const { dataValues } = await User.findOne({ where: { id: +req.params.id } });
-  const { password, ...rest } = dataValues;
-  return res.status(200).json({ data: { ...rest } });
+  return res.status(200).json({ data: getUser(user.dataValues) });
 });
 
 router.get("/", async (req, res) => {
-  if (!req.cookies.jwt) {
-    return res.status(401).json({ error: "not_authorized" });
-  }
-  const { userId } = jwt.verify(req.cookies.jwt, tokenSecret);
-  if (!userId) {
-    return res.status(401).json({ error: "not_authorized" });
-  }
+  const userId = getId(req, res);
   const { dataValues } = await User.findOne({ where: { id: userId } });
-  const { password, ...rest } = dataValues;
-  return res.status(200).json({ data: { ...rest } });
+  return res.status(200).json({ data: getUser(dataValues) });
 });
 
 module.exports = router;

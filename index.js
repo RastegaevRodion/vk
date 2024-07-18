@@ -3,6 +3,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const user = require("./src/user/user.routes");
+const friend = require("./src/friend/friend.routes");
 
 const app = express();
 app.use(
@@ -22,6 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/static", express.static("public"));
 
 app.use("/user", user);
+app.use("/friend", friend);
 
 app.listen(3001, function () {
   console.log("Are you Ready???!");
