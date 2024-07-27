@@ -13,9 +13,11 @@ router.post("/", async (req, res) => {
   }
   const userId = getId(req, res);
   const offer = await Friend.findOne({
-    who: req.body.whom,
-    whom: userId,
-    isFriend: false,
+    where: {
+      who: req.body.whom,
+      whom: userId,
+      isFriend: false,
+    },
   });
   if (offer) {
     await Friend.update(
@@ -25,8 +27,10 @@ router.post("/", async (req, res) => {
     return res.status(200).json({ isFriend: true });
   } else {
     const request = await Friend.findOne({
-      who: userId,
-      whom: req.body.whom,
+      where: {
+        who: userId,
+        whom: req.body.whom,
+      },
     });
     if (!request) {
       await Friend.create({
