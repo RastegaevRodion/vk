@@ -8,6 +8,7 @@ const User = require("./user.model");
 const { tokenSecret } = require("../constants");
 const getId = require("../utils/getId");
 const getUser = require("../utils/getUser");
+const Friend = require("../friend/friend.model");
 
 const router = express.Router();
 
@@ -53,7 +54,8 @@ router.post("/signIn", async (req, res) => {
         maxAge: new Date(new Date() + 1000 * 60 * 60 * 24 * 30),
         httpOnly: true,
       });
-      return res.status(200).json({ data: getUser(user.dataValues) });
+      const data = await getUser(user.dataValues, user.dataValues.id);
+      return res.status(200).json({ data });
     } else {
       return res.status(400).json({ error: "Email or password are invalid" });
     }
@@ -113,7 +115,8 @@ router.put("/", images, async (req, res) => {
 
   await User.update(user, { where: { id: userId } });
   const { dataValues } = await User.findOne({ where: { id: userId } });
-  res.status(200).json({ data: getUser(dataValues) });
+  const data = await getUser(dataValues, userId);
+  res.status(200).json({ data });
 });
 
 router.get("/search", async (req, res) => {
@@ -122,14 +125,6 @@ router.get("/search", async (req, res) => {
     return res.status(404).json({ error: "not_found" });
   }
   const words = key.split(/\s+/);
-  console.log([
-    ...words.map((word) => {
-      return { firstName: { [Op.iLike]: word } };
-    }),
-    ...words.map((word) => {
-      return { lastName: { [Op.iLike]: word } };
-    }),
-  ]);
   const users = await User.findAll({
     where: {
       [Op.or]: [
@@ -142,23 +137,34 @@ router.get("/search", async (req, res) => {
       ],
     },
   });
-  return res
-    .status(200)
-    .json({ data: users.map(({ dataValues }) => getUser(dataValues)) });
+  const userId = getId(req, res);
+  const data = await Promise.all(users.map(({ dataValues }) => getUser(dataValues, userId)));
+  return res.status(200).json({ data });
 });
 
 router.get("/:id", async (req, res) => {
+  const userId = getId(req, res);
   const user = await User.findOne({ where: { id: +req.params.id } });
   if (!user || !user.dataValues) {
     return res.status(404).json({ error: "not_found" });
   }
-  return res.status(200).json({ data: getUser(user.dataValues) });
+  const data = await getUser(user.dataValues, userId);
+  const friendsRecords = await Friend.findAll({ where: { [Op.or]: [
+    { who: user.dataValues.id, isFriend: true },
+    { whom: user.dataValues.id, isFriend: true },
+  ] } });
+  const users = await User.findAll({
+    where: { id: { [Op.in]: friendsRecords.map(({ who, whom }) => who === user.dataValues.id ? whom : who) } },
+  });
+  const friends = await Promise.all(users.map(({ dataValues }) => getUser(dataValues)));
+  return res.status(200).json({ data: { ...data, friends } });
 });
 
 router.get("/", async (req, res) => {
   const userId = getId(req, res);
   const { dataValues } = await User.findOne({ where: { id: userId } });
-  return res.status(200).json({ data: getUser(dataValues) });
+  const data = await getUser(dataValues, userId)
+  return res.status(200).json({ data });
 });
 
 module.exports = router;

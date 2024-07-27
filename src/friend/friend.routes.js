@@ -65,9 +65,8 @@ router.get("/requests", async (req, res) => {
   const users = await User.findAll({
     where: { id: { [Op.in]: requests.map((e) => e.whom) } },
   });
-  return res
-    .status(200)
-    .json({ data: users.map(({ dataValues }) => getUser(dataValues)) });
+  const data = await Promise.all(users.map(({ dataValues }) => getUser({ ...dataValues, friendStatus: 'request' })));
+  return res.status(200).json({ data });
 });
 
 router.get("/offers", async (req, res) => {
@@ -78,9 +77,8 @@ router.get("/offers", async (req, res) => {
   const users = await User.findAll({
     where: { id: { [Op.in]: offers.map((e) => e.who) } },
   });
-  return res
-    .status(200)
-    .json({ data: users.map(({ dataValues }) => getUser(dataValues)) });
+  const data = await Promise.all(users.map(({ dataValues }) => getUser({ ...dataValues, friendStatus: 'offer' })));
+  return res.status(200).json({ data });
 });
 
 router.get("/", async (req, res) => {
@@ -96,9 +94,8 @@ router.get("/", async (req, res) => {
     return who === userId ? whom : who;
   });
   const users = await User.findAll({ where: { id: { [Op.in]: ids } } });
-  return res
-    .status(200)
-    .json({ data: users.map(({ dataValues }) => getUser(dataValues)) });
+  const data = await Promise.all(users.map(({ dataValues }) => getUser({ ...dataValues, friendStatus: 'friend' })));
+  return res.status(200).json({ data });
 });
 
 module.exports = router;
