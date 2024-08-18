@@ -40,8 +40,8 @@ router.post("/", async (req, res) => {
       });
       return res.status(200).json({ isFriend: false });
     }
+    return res.status(200).json({ success: request.dataValues.isFriend });
   }
-  return res.status(200).json({ success: request.dataValues.isFriend });
 });
 
 router.delete("/:id", async (req, res) => {

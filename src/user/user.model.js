@@ -7,6 +7,14 @@ const User = sequelize.define("user", {
     autoIncrement: true,
     primaryKey: true,
   },
+  isOnline: {
+    type: DataTypes.BOOLEAN,
+    allowNull: true,
+  },
+  lastOnline: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
   firstName: {
     type: DataTypes.STRING,
     allowNull: false,

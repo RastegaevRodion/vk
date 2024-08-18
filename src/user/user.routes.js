@@ -35,6 +35,7 @@ const upload = multer({
 
 router.post("/signIn", async (req, res) => {
   try {
+    console.log(111)
     if (!req.body.email || !req.body.password) {
       return res.status(400).json({ success: false });
     }

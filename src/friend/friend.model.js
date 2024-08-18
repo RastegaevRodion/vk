@@ -22,9 +22,6 @@ const Friend = sequelize.define("friends", {
   },
 });
 
-User.belongsToMany(User, { through: Friend, as: "who", foreignKey: "id" });
-User.belongsToMany(User, { through: Friend, as: "whom", foreignKey: "id" });
-
 (async () => {
   await sequelize.sync({ alter: true });
 })();
